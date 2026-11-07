@@ -1,0 +1,35 @@
+name: Windows build prerequisites
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'tools/**'
+      - 'recomp/**'
+      - 'runtime/**'
+      - '.github/workflows/windows-build-prerequisites.yml'
+
+jobs:
+  windows-check:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check repository for prohibited game assets
+        run: python tools/check_content.py
+      - name: Check Python build scripts
+        shell: pwsh
+        run: |
+          $scripts = Get-ChildItem tools,recomp -Recurse -Filter *.py
+          foreach ($script in $scripts) {
+            python -c "import ast,sys; ast.parse(open(sys.argv[1],encoding='utf-8-sig').read())" $script.FullName
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+      - name: Explain native executable requirements
+        shell: pwsh
+        run: |
+          Write-Host "Windows source checks passed."
+          Write-Host "A runnable oot.exe requires locally extracted game modules, generated C, and the Windows native dependencies."
+          Write-Host "No copyrighted game content is stored in or downloaded by this workflow."
